@@ -1,0 +1,27 @@
+variables:
+  DOCKER_BASE_URL: partner.bdr.de
+  DOCKER_IMAGE_NAME: "openshift-csr-approver"
+  DOCKER_IMAGE_LATEST: $DOCKER_BASE_URL/csp-docker/$DOCKER_IMAGE_NAME:$CI_COMMIT_REF_SLUG-latest
+  DOCKER_IMAGE_ID: $DOCKER_BASE_URL/bop-docker/$DOCKER_IMAGE_NAME:$CI_COMMIT_REF_SLUG-$CI_PIPELINE_IID
+
+stages:
+  - kaniko-build
+
+test-build:
+  stage: kaniko-build
+  # all commands will be run within a docker container which can run kaniko
+  image:
+    name: partner.bdr.de/bop-docker-common/bop-kaniko:v1.0.1
+    entrypoint: [ "" ]
+  script:
+    # store temporary auth credentials for Docker login (Artifactory) to docker config file
+    # https://partner.bdr.de/gitlab/bop/internal-tools/artifactory-token-generator
+    - artgen -e 1h docker /kaniko/.docker/config.json
+
+    # use Kaniko to build a Docker image using our Dockerfile and push it to the repository (partner.bdr.de/Artifactory)
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${DOCKER_IMAGE_ID}"
+      --build-arg="ART_USER=${GITLAB_VAR_ART_USER}"
+      --build-arg="ART_APIKEY=$(artgen -e 1h stdout)"
