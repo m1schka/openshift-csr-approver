@@ -37,12 +37,12 @@ import OpenSSL
 from openshift_csr_approver.logging import logger, PrettyFormatter
 
 
-def create_approval_patch(csr: k8s.V1beta1CertificateSigningRequest,
+def create_approval_patch(csr: k8s.V1CertificateSigningRequest,
                           date: datetime) -> None:
     # Approving CSRs works by appending a condition of type
     # "Approved" to the status.
     message = f'This CSR for node {csr.metadata.name} was approved by openshift-csr-approver'  # noqa E501
-    condition = k8s.V1beta1CertificateSigningRequestCondition(
+    condition = k8s.V1CertificateSigningRequestCondition(
         type='Approved',
         reason='openshift-csr-approver',
         message=message,
@@ -113,7 +113,7 @@ def parse_node_csr_spec(filepath: str) -> Dict[str, Any]:
     return node_csr_spec
 
 
-def parse_csr(csr: k8s.V1beta1CertificateSigningRequest) \
+def parse_csr(csr: k8s.V1CertificateSigningRequest) \
         -> OpenSSL.crypto.X509Req:
     b64 = csr.spec.request
     decoded = base64.b64decode(b64)
@@ -122,7 +122,7 @@ def parse_csr(csr: k8s.V1beta1CertificateSigningRequest) \
     return parsed
 
 
-def check_approve_csr(csr: k8s.V1beta1CertificateSigningRequest,
+def check_approve_csr(csr: k8s.V1CertificateSigningRequest,
                       csr_info: OpenSSL.crypto.X509Req,
                       node_csr_spec: Dict[str, Any]) \
         -> Tuple[bool, str]:
@@ -198,9 +198,9 @@ def check_approve_csr(csr: k8s.V1beta1CertificateSigningRequest,
     return True, f'Marking CSR for approval: {prettyname}'
 
 
-def iterate_csrs(csrs: k8s.V1beta1CertificateSigningRequestList,
+def iterate_csrs(csrs: k8s.V1CertificateSigningRequestList,
                  node_csr_spec: Dict[str, Any]) \
-        -> List[k8s.V1beta1CertificateSigningRequest]:
+        -> List[k8s.V1CertificateSigningRequest]:
     if len(csrs.items) == 0:
         logger.info('No CSRs to process')
     csrs_to_approve = []
@@ -223,8 +223,8 @@ def iterate_csrs(csrs: k8s.V1beta1CertificateSigningRequestList,
 
 def run_csr_approval(client: k8s.ApiClient,
                      node_csr_spec: Dict[str, Any]) -> None:
-    api = k8s.CertificatesV1beta1Api(client)
-    csrs: k8s.V1beta1CertificateSigningRequestList \
+    api = k8s.CertificatesV1Api(client)
+    csrs: k8s.V1CertificateSigningRequestList \
         = api.list_certificate_signing_request()
     now = datetime.utcnow()
     csrs_to_approve = iterate_csrs(csrs, node_csr_spec)
